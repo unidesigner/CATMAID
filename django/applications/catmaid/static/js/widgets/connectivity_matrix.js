@@ -376,6 +376,11 @@
     var colHeader = table.appendChild(document.createElement('tr'));
     colHeader.appendChild(document.createElement('th'));
 
+    // Append aggregate column to matrix
+    var aggColHead = document.createElement('th');
+    aggColHead.appendChild(document.createTextNode('Sum'));
+    colHeader.appendChild(aggColHead);
+
     // Find maximum connection number in matrix
     var maxConnections = matrix.getMaxConnections();
 
@@ -383,11 +388,13 @@
         handleRow.bind(window, table), handleCell.bind(this));
 
     if (walked) {
+      // Add general information paragraph
       var infoBox = document.createElement('div');
       infoBox.appendChild(document.createTextNode('The table below shows the ' +
             'number of post-synaptic connections from row to column skeletons. ' +
             'If there are no connections, no number is shown.'));
       content.appendChild(infoBox);
+
       // Append matrix to content
       content.appendChild(table);
 
@@ -493,7 +500,7 @@
    * be created.
    */
   ConnectivityMatrixWidget.prototype.walkMatrix = function(
-      matrix, handleCol, handleRow, handleCell) {
+      matrix, handleCol, handleRow, handleCell, afterRow, afterCol) {
     var nRows = matrix.getNumberOfRows();
     var nCols = matrix.getNumberOfColumns();
     if (0 === nRows || 0 === nCols) {
@@ -544,6 +551,8 @@
         // Increase index for next iteration
         c = colGroup ? c + colGroup.length : c + 1;
       }
+
+      if (afterRow) afterRow(dr);
 
       // Increase index for next iteration
       r = rowGroup ? r + rowGroup.length : r + 1;
