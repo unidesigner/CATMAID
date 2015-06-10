@@ -27,6 +27,10 @@
     self.noRefreshBetwenSegments = false;
     // Default reference orientation to XY
     self.referenceOrientation = Stack.ORIENTATION_XY;
+    // Specify step size for skipping consecutive virtual nodes
+    self.virtualNodeStep = 1;
+    // Keep track of last virtual node step, if any
+    self.skipStep = null;
 
     this.init = function() {
       projectID = project.id;
@@ -93,7 +97,8 @@
       var index = this.current_segment_index;
       // If there is an active segment and no node is selected anymore or the
       // node change, mark the current segment as unfocused.
-      if (segment && (!node || segment[index].id !== node.id)) {
+      if (segment && (!node || segment[index].id !== node.id) &&
+          (!this.skipStep || this.skipStep.id !== node.id)) {
         this.segmentUnfocused = true;
       }
     };
@@ -140,6 +145,15 @@
       if (self.skeleton_segments===null)
         return;
       var node = self.current_segment['sequence'][idx];
+      this.goToNodeOfSegmentSequence(node, forceCentering);
+    };
+
+    /**
+     * Move to the a specific node of the segment currently under review.
+     */
+    this.goToNodeOfSegmentSequence = function(node, forceCentering) {
+      if (self.skeleton_segments===null)
+        return;
       var center = autoCentering || forceCentering;
       SkeletonAnnotations.staticMoveTo(
         (self.isZView() || center) ? node.z : project.coordinates.z,
@@ -155,7 +169,9 @@
         return;
       }
 
-      self.markAsReviewed( self.current_segment['sequence'][self.current_segment_index] );
+      var sequence = self.current_segment['sequence'];
+
+      if (!self.skipStep) self.markAsReviewed(sequence[self.current_segment_index]);
 
       // By default, the selected node is changed and centering not enforced.
       var changeSelectedNode = true;
@@ -174,15 +190,77 @@
         forceCentering = true;
       }
 
-      if(self.current_segment_index > 0) {
-        if (changeSelectedNode) {
+      if (changeSelectedNode) {
+        if(self.current_segment_index > 0 || self.skipStep) {
+          var ln, cn, newIndex = self.current_segment_index - 1;
+          if (self.skipStep) {
+            ln = self.skipStep;
+            // If the existing skipping step was created with the current node
+            // as source, the current test node needs to be the virtual node.
+            if (self.skipStep.to !== sequence[newIndex]) {
+              newIndex = self.current_segment_index;
+            }
+          } else {
+            ln = sequence[self.current_segment_index];
+          }
+          cn = sequence[newIndex];
+          // If the distance between the (new) current node and the node before it
+          // is above the maximum step distance, an intermediate step will be
+          // taken to force the user to better sample larger distances. If such a
+          // sample step has already been taken before, this step is the reference
+          // point for the distance test. Steps are sections in the currently
+          // focused stack.
+          self.skipStep = self.limitMove(ln, cn, true);
+          if (self.skipStep) {
+            // Move to skipping step
+            this.goToNodeOfSegmentSequence(self.skipStep, forceCentering);
+            return;
+          } else {
+            self.current_segment_index = newIndex;
+          }
+
           self.warnIfNodeSkipsSections();
-          self.current_segment_index--;
         }
         self.goToNodeIndexOfSegmentSequence(self.current_segment_index, forceCentering);
       } else {
         // Go to 'previous' section, to check whether an end really ends
-        self.lookBeyondSegment(self.current_segment['sequence'], forceCentering);
+        self.lookBeyondSegment(sequence, forceCentering);
+      }
+    };
+
+    /**
+     * Return a skipping step, if there is one required when moving from node 1
+     * to node 2. If no step is required, null is returned.
+     */
+    this.limitMove = function(ln, cn, backwards) {
+      var vP = [cn.x - ln.x, cn.y - ln.y, cn.z - ln.z];
+      // Get difference vector in stack space coordinates and check that not
+      // more sections are crossed than allowed.
+      var stack = project.focusedStack;
+      var vPAbs = [Math.abs(vP[0]), Math.abs(vP[1]), Math.abs(vP[2])];
+      var vSAbs = [stack.projectToStackX(vPAbs[2], vPAbs[1], vPAbs[0]),
+                   stack.projectToStackY(vPAbs[2], vPAbs[1], vPAbs[0]),
+                   stack.projectToStackZ(vPAbs[2], vPAbs[1], vPAbs[0])];
+      // If the stack space Z distance is larger than the virtual node step
+      // value, stop at the section that is reachable with this value.
+      if (vSAbs[2] > self.virtualNodeStep) {
+        // Get project space coordinate of intermediate point, move to it and
+        // select a virtual node there.
+        var zS = stack.z + self.virtualNodeStep * (vP[2] > 0 ? 1 : -1);
+        var vnID = backwards ?
+          SkeletonAnnotations.getVirtualNodeID(cn.id, ln.id, zS) :
+          SkeletonAnnotations.getVirtualNodeID(ln.id, cn.id, zS);
+        var zRatio = self.virtualNodeStep / vSAbs[2];
+        return {
+          id: vnID,
+          x: ln.x + vP[0] * zRatio,
+          y: ln.y + vP[1] * zRatio,
+          z: ln.z + vP[2] * zRatio,
+          stack: stack,
+          to: cn
+        };
+      } else {
+        return null;
       }
     };
 
@@ -224,26 +302,29 @@
       var sequence = self.current_segment['sequence'];
       var sequenceLength = sequence.length;
 
-      // Mark current node as reviewed, don't wait for the server to respond
-      self.markAsReviewed( sequence[self.current_segment_index] );
+      // Mark current node as reviewed, if this is no intermediate step.
+      if (!self.skipStep) {
+        //  Don't wait for the server to respond
+        self.markAsReviewed( sequence[self.current_segment_index] );
 
-      if( self.current_segment_index === sequenceLength - 1  ) {
-        if (self.noRefreshBetwenSegments) {
-          end_puffer_count += 1;
-          // do not directly jump to the next segment to review
-          if( end_puffer_count < 3) {
-            CATMAID.msg('DONE', 'Segment fully reviewed: ' +
-                self.current_segment['nr_nodes'] + ' nodes');
+        if( self.current_segment_index === sequenceLength - 1  ) {
+          if (self.noRefreshBetwenSegments) {
+            end_puffer_count += 1;
+            // do not directly jump to the next segment to review
+            if( end_puffer_count < 3) {
+              CATMAID.msg('DONE', 'Segment fully reviewed: ' +
+                  self.current_segment['nr_nodes'] + ' nodes');
+              return;
+            }
+            // Segment fully reviewed, go to next without refreshing table
+            // much faster for smaller fragments
+            markSegmentDone(selg.current_segment, [session.userid])
+            self.selectNextSegment();
+            return;
+          } else {
+            self.startSkeletonToReview(skeletonID, subarborNodeId);
             return;
           }
-          // Segment fully reviewed, go to next without refreshing table
-          // much faster for smaller fragments
-          markSegmentDone(selg.current_segment, [session.userid])
-          self.selectNextSegment();
-          return;
-        } else {
-          self.startSkeletonToReview(skeletonID, subarborNodeId);
-          return;
         }
       }
 
@@ -263,22 +344,48 @@
       }
 
       if (changeSelectedNode) {
-        self.current_segment_index++;
 
         var whitelist = CATMAID.ReviewSystem.Whitelist.getWhitelist();
         var reviewedByTeam = reviewedByUserOrTeam.bind(self, whitelist);
 
+        var newIndex = self.current_segment_index + 1;
         if (advanceToNextUnfollowed) {
           // Advance current_segment_index to the first node that is not reviewed
           // by the current user or any review team member.
-          var i = self.current_segment_index;
+          var i = newIndex;
           while (i < sequenceLength) {
             if (!seq[i].rids.some(reviewedByTeam)) {
-              self.current_segment_index = i;
+              newIndex = i;
               break;
             }
             i += 1;
           }
+        }
+
+        // If the distance between the (new) current node and the node before it
+        // is above the maximum step distance, an intermediate step will be
+        // taken to force the user to better sample larger distances. If such a
+        // sample step has already been taken before, this step is the reference
+        // point for the distance test. Steps are sections in the currently
+        // focused stack.
+        var ln, cn;
+        if (self.skipStep) {
+          ln = self.skipStep;
+          if (self.skipStep.to !== sequence[newIndex]) {
+            newIndex = Math.min(self.current_segment_index + 1, sequenceLength - 1);
+          }
+        } else {
+          ln = sequence[newIndex - 1];
+        }
+        cn = sequence[newIndex];
+
+        self.skipStep = self.limitMove(ln, cn, false);
+        if (self.skipStep) {
+          // Move to skipping step
+          this.goToNodeOfSegmentSequence(self.skipStep, forceCentering);
+          return;
+        } else {
+          self.current_segment_index = newIndex;
         }
 
         if (self.current_segment_index < sequenceLength -1) {
@@ -346,16 +453,24 @@
       return false;
     }
 
+    /**
+     * Create a warning message if the distance between the current and the last
+     * node (or last skipping step) is larger than what is allowed to be
+     * skipped.
+     */
     this.warnIfNodeSkipsSections = function () {
       if (0 === self.current_segment_index) {
         return;
       }
-      var zdiff = (self.current_segment.sequence[self.current_segment_index].z -
-            self.current_segment.sequence[self.current_segment_index-1].z) /
-            project.focusedStack.resolution.z;
-      if (Math.abs(zdiff) > 1) CATMAID.msg("Skipped sections",
-        "This node is " + Math.abs(zdiff) + " sections away from the previous node.",
-        {style: 'warning'});
+      var cn = self.current_segment.sequence[self.current_segment_index];
+      var ln = self.skipStep ? self.skipStep :
+        self.current_segment.sequence[self.current_segment_index - 1];
+      var zdiff = project.focusedStack.projectToStackZ(
+          cn.z - ln.z, cn.y - ln.y, cn.x - ln.x);
+      if (Math.abs(zdiff) > self.virtualNodeStep) {
+        CATMAID.msg("Skipped sections", "This node is " + Math.abs(zdiff) +
+            " sections away from the previous node.", {style: 'warning'});
+      }
     };
 
     var submit = typeof submitterFn!= "undefined" ? submitterFn() : undefined;
@@ -395,6 +510,9 @@
      * be executed after all pending requests.
      */
     this.selectNextSegment = function() {
+      // Reset skipping step, if any
+      self.skipStep = null;
+      // Find nexte segment
       if (self.skeleton_segments) {
         var fn = function() {
           var nSegments = self.skeleton_segments.length;
