@@ -87,15 +87,51 @@ def circles_of_hell(request, project_id=None):
 def find_directed_paths(request, project_id=None):
     """ Given a set of two or more skeleton IDs, find directed paths of connected neurons between them, for a maximum inner path length as given (i.e. origin and destination not counted). A directed path means that all edges are of the same kind, e.g. presynaptic_to. """
 
-    sources = set(int(v) for k,v in request.POST.iteritems() if k.startswith('skeleton_ids['))
-    if len(sources) < 2:
-        raise Exception('Need at least 2 skeleton IDs to find directed paths!')
+    sources = set(int(v) for k,v in request.POST.iteritems() if k.startswith('sources['))
+    targets = set(int(v) for k,v in request.POST.iteritems() if k.startswith('targets['))
+    if len(sources) < 1 or len(targest) < 1:
+        raise Exception('Need at least 1 skeleton IDs for both sources and targets to find directed paths!')
 
     path_length = int(request.POST.get('n_circles', 1))
     cursor = connection.cursor()
     mins, relations = _clean_mins(request, cursor, int(project_id))
     presynaptic_to = relations['presynaptic_to']
-    graph = nx.DiGraph()
+
+    def grow(graph, circle):
+        s = set()
+        for skid1, c in circle.iteritems():
+            for relationID, targets in c.iteritems():
+                threshold = mins[relationID]
+                add_edge = graph.add_edge if relationID == presynaptic_to else rev_args(graph.add_edge)
+                for skid2, count in targets.iteritems():
+                    if count < threshold:
+                        continue
+                    add_edge(skid1, skid2)
+                    s.add(skid2)
+        return s
+
+    for source in sources:
+        for target in targets:
+            graph = nx.DiGraph()
+            length = path_length
+            s1 = set()
+            t1 = set()
+            s1.add(source)
+            t1.add(target)
+            while length > 0:
+                length -= 1
+                s1 = grow(graph, _next_circle(s1, relations, cursor))
+                t1 = grow(graph, _next_circle(t1, relations, cursor))
+
+    for 
+
+                
+
+
+
+
+
+
     next_sources = sources
     all_sources = sources
     length = path_length
