@@ -59,3 +59,55 @@ $.fn.dataTable.ext.oSort['hslcolor-asc']  = function(a, b) {
 $.fn.dataTable.ext.oSort['hslcolor-desc']  = function(a, b) {
   return -1 * CATMAID.tools.compareHSLColors(a, b);
 };
+
+
+/**
+ * The CATMAID.ColorPicker namespace provides extensions for jQuery
+ * tinyColorPicker.
+ */
+
+CATMAID.ColorPicker = {
+  makeMemoryOptions: function() {
+    return {
+      customBG: '#222',
+      margin: '4px -2px 0',
+      doRender: 'div div',
+      opacity: true,
+
+      buildCallback: function($elm) {
+        var colorInstance = this.color,
+          colorPicker = this,
+          random = function(n) {
+            return Math.round(Math.random() * (n || 255));
+          };
+
+        $elm.append('<div class="cp-memory">' +
+          '<div></div><div></div><div></div><div></div>' +
+          '<div></div><div></div><div></div><div class="cp-store">S</div>').
+        on('click', '.cp-memory div', function(e) {
+          var $this = $(this);
+
+          if (this.className) {
+            $this.parent().prepend($this.prev()).children().eq(0).
+              css('background-color', '#' + colorInstance.colors.HEX);
+          } else {
+            colorInstance.setColor($this.css('background-color'));
+            colorPicker.render();
+          }
+        }).find('.cp-memory div').each(function() {
+          !this.className && $(this).css({background:
+            'rgb(' + random() + ', ' + random() + ', ' + random() + ')'
+          });
+        });
+      },
+
+      cssAddon: // could also be in a css file instead
+        '.cp-memory {margin-bottom:6px; clear:both;}' +
+        '.cp-xy-slider:active {cursor:none;}' +
+        '.cp-memory div {float:left; width:17px; height:17px; margin-right:2px;' +
+          'background:rgba(0,0,0,1); text-align:center; line-height:17px;}' +
+        '.cp-memory .cp-store {width:21px; margin:0; background:none; font-weight:bold;' +
+          'box-sizing:border-box; border: 1px solid; border-color: #666 #222 #222 #666;}'
+    };
+  }
+};
