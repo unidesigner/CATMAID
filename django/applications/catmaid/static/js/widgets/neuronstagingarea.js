@@ -660,6 +660,26 @@ SelectionTable.prototype.GUI.prototype.update = function() {
   // Re-create table, let DataTables take care of paging
   skeletons.forEach(this.append, this);
 
+  // Add color picker
+  var self = this;
+  var cpOptions = CATMAID.ColorPicker.makeMemoryOptions();
+  cpOptions.renderCallback = function($elm, toggled) {
+    // Find skeleton in row
+    var skeletonID = $elm.closest("tr").attr("data-skeleton-id");
+    if (!skeletonID) throw new Error("Couldn't find skeleton ID");
+    var skeleton = self.table.skeletons[self.table.skeleton_ids[skeletonID]];
+
+    // update skeleton color based on dialog.
+    if (skeleton) {
+      var c = this.color.colors;
+      skeleton.color.setRGB(c.rgb.r, c.rgb.g, c.rgb.b);
+      skeleton.opacity = c.alpha;
+      self.table.notifyLink(skeleton);
+      console.log(c.rgb);
+    }
+  }
+  var colorPicker = $('#skeleton-table' + widgetID + ' tbody .action-changecolor').colorPicker(cpOptions);
+
   $("table#skeleton-table" + widgetID ).dataTable({
     destroy: true,
     dom: "lrptip",
