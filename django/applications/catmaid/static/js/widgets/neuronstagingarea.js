@@ -675,7 +675,6 @@ SelectionTable.prototype.GUI.prototype.update = function() {
       skeleton.color.setRGB(c.rgb.r, c.rgb.g, c.rgb.b);
       skeleton.opacity = c.alpha;
       self.table.notifyLink(skeleton);
-      console.log(c.rgb);
     }
   }
   var colorPicker = $('#skeleton-table' + widgetID + ' tbody .action-changecolor').colorPicker(cpOptions);
