@@ -769,18 +769,20 @@ SelectionTable.prototype.GUI.prototype.append = function (skeleton) {
     ));
   });
 
+  var sc = skeleton.color;
   var td = $(document.createElement("td"))
     .addClass("centering");
-  td.attr('data-color', '#' + skeleton.color.getHexString());
+  td.attr('data-color', '#' + sc.getHexString());
   td.append(
     $(document.createElement("button"))
       .attr({
         id: 'skeletonaction-changecolor-' + widgetID + '-' + skeleton.id,
-        value: 'color',
+        value: 'rgba(' + Math.floor(sc.r * 255) + ',' + Math.floor(sc.g * 255) +
+               ',' + Math.floor(sc.b * 255) + ',' + skeleton.opacity + ')'
       })
       .addClass('action-changecolor')
       .text('color')
-      .css("background-color", '#' + skeleton.color.getHexString())
+      .css("background-color", '#' + sc.getHexString())
   );
   td.append(
     $('<div id="color-wheel' + widgetID + '-' + skeleton.id +
