@@ -122,7 +122,7 @@ CATMAID.ColorPicker = {
       },
 
       cssAddon: // could also be in a css file instead
-        '.cp-color-picker{box-sizing:border-box; width:233px;}' +
+        '.cp-color-picker{box-sizing:border-box;}' +
         '.cp-color-picker .cp-panel {line-height: 21px; float:right;' +
           'padding:0 1px 0 8px; margin-top:-1px; overflow:visible}' +
         '.cp-xy-slider:active {cursor:none;}' +
