@@ -662,8 +662,13 @@ SelectionTable.prototype.GUI.prototype.update = function() {
 
   // Add color picker
   var self = this;
-  var cpOptions = CATMAID.ColorPicker.makeMemoryOptions();
+  var cpOptions = CATMAID.ColorPicker.makeMemoryInputOptions();
+  var originalRenderCallback = cpOptions.renderCallback;
   cpOptions.renderCallback = function($elm, toggled) {
+    if (CATMAID.tools.isFn(originalRenderCallback)) {
+      originalRenderCallback.call(this, $elm, toggled);
+    }
+
     // Find skeleton in row
     var skeletonID = $elm.closest("tr").attr("data-skeleton-id");
     if (!skeletonID) throw new Error("Couldn't find skeleton ID");
