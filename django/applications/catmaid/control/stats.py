@@ -33,10 +33,14 @@ def _process(query, minus1name):
 @requires_user_role([UserRole.Annotate, UserRole.Browse])
 def stats_nodecount(request, project_id=None):
     return _process('''
-    SELECT user_id, count(*)
-    FROM treenode
-    WHERE project_id=%s
-    GROUP BY user_id
+        SELECT child.user_id, round(sum(sqrt(pow(child.location_x - parent.location_x, 2)
+                                           + pow(child.location_y - parent.location_y, 2)
+                                           + pow(child.location_z - parent.location_z, 2))))
+        FROM treenode child,
+             treenode parent
+        WHERE child.project_id = %s
+          AND child.parent_id = parent.id
+        GROUP BY child.user_id
     ''' % int(project_id), "*anonymous*")
 
 
