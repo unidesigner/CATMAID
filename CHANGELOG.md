@@ -19,6 +19,20 @@ Skeleton projection layer
   (<50px screen space), the tracing layer's node selection is used.
 
 
+Volumes:
+
+- A new widget, the Volume Manager, allows to create and list volumetric
+  geometries. These geometries are not yet displayable and for now only
+  box volumes can be created. The widget is available through a new box
+  icon, last in the list of tracing tool widgets. Currently, only box
+  geometries can be created.
+
+- New nodes can now be tested for intersecting a certain volume. The
+  Tracing section of the settings widget allows to choose a volume
+  against which new nodes will be tested. If they are outside of it, a
+  warning will be shown.
+
+
 Miscellaneous:
 
 - By default new widgets will now select the last widget created as skeleton
