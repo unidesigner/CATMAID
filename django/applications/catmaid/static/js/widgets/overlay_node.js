@@ -43,22 +43,24 @@
       /**
        * Create a new SkeletonInstance and return it.
        */
-      createSkeletonElements: function(paper, defSuffix) {
+      createSkeletonElements: function(paper, defSuffix, skeletonDisplayModels) {
         // Add prototype
         SkeletonElements.prototype = createSkeletonElementsPrototype();
 
-        return new SkeletonElements(paper, defSuffix);
+        return new SkeletonElements(paper, defSuffix, skeletonDisplayModels);
       }
     };
   })();
 
   /** Namespace where SVG element instances are created, cached and edited. */
-  var SkeletonElements = function(paper, defSuffix)
+  var SkeletonElements = function(paper, defSuffix, skeletonDisplayModels)
   {
     // Allow a suffix for SVG definition IDs
     this.USE_HREF_SUFFIX = defSuffix || '';
     // Create definitions for reused elements and markers
     var defs = paper.append('defs');
+
+    skeletonDisplayModels = skeletonDisplayModels || {};
 
     // Let (concrete) element classes initialize any shared SVG definitions
     // required by their instances. Even though called statically, initDefs is an
@@ -177,7 +179,7 @@
       if (node) {
         node.reInit(id, parent, parent_id, radius, x, y, z, zdiff, confidence, skeleton_id, can_edit);
       } else {
-        node = new this.Node(paper, id, parent, parent_id, radius, x, y, z, zdiff, confidence, skeleton_id, can_edit, defSuffix);
+        node = new this.Node(paper, skeletonDisplayModels, id, parent, parent_id, radius, x, y, z, zdiff, confidence, skeleton_id, can_edit, defSuffix);
         this.cache.nodePool.push(node);
       }
       return node;
@@ -199,7 +201,7 @@
       if (connector) {
         connector.reInit(id, x, y, z, zdiff, confidence, subtype, can_edit);
       } else {
-        connector = new this.ConnectorNode(paper, id, x, y, z, zdiff, confidence, subtype, can_edit, defSuffix);
+        connector = new this.ConnectorNode(paper, skeletonDisplayModels, id, x, y, z, zdiff, confidence, subtype, can_edit, defSuffix);
         connector.createArrow = this.createArrow;
         this.cache.connectorPool.push(connector);
       }
@@ -391,6 +393,8 @@
       * current slice, whether it's the active node, the root node, or in
       * an active skeleton. */
       this.color = function() {
+        var model = this.skeletonDisplayModels[this.skeleton_id];
+        if (model) return this.colorCustom(model.color);
         var color;
         if (SkeletonAnnotations.getActiveNodeId() === this.id) {
           // The active node is always in green:
@@ -408,12 +412,29 @@
         return color;
       };
 
+      this.colorCustom = function (baseColor) {
+        if (SkeletonAnnotations.getActiveNodeId() === this.id) {
+          // The active node is always in green:
+          return SkeletonAnnotations.getActiveNodeColor();
+        } else if (this.isroot) {
+          // The root node should be colored red unless it's active:
+          return baseColor.clone().offsetHSL(0, 0, 0.25).getStyle();
+        } else if (0 === this.numberOfChildren) {
+          return baseColor.clone().offsetHSL(0, 0, -0.25).getStyle();
+        } else {
+          // If none of the above applies, just colour according to the z difference.
+          return this.colorCustomFromZDiff(baseColor);
+        }
+      };
+
       /**
        * Return a color depending upon some conditions, such as whether the zdiff
        * with the current section is positive, negative, or zero, and whether the
        * node belongs to the active skeleton.
        */
       this.colorFromZDiff = function() {
+        var model = this.skeletonDisplayModels[this.skeleton_id];
+        if (model) return this.colorCustomFromZDiff(model.color);
         // zdiff is in sections, therefore the current section is at [0, 1) --
         // notice 0 is inclusive and 1 is exclusive.
         if (this.zdiff >= 1) {
@@ -428,6 +449,26 @@
           }
         } else if (SkeletonAnnotations.isRealNode(this.id)) {
           return SkeletonAnnotations.inactive_skeleton_color;
+        } else {
+          return SkeletonAnnotations.inactive_skeleton_color_virtual;
+        }
+      };
+
+      this.colorCustomFromZDiff = function (baseColor) {
+        // zdiff is in sections, therefore the current section is at [0, 1) --
+        // notice 0 is inclusive and 1 is exclusive.
+        if (this.zdiff >= 1) {
+          return baseColor.clone().offsetHSL(0.1, 0, 0).getStyle();
+        } else if (this.zdiff < 0) {
+          return baseColor.clone().offsetHSL(-0.1, 0, 0).getStyle();
+        } else if (SkeletonAnnotations.getActiveSkeletonId() === this.skeleton_id) {
+          if (SkeletonAnnotations.isRealNode(this.id)) {
+            return SkeletonAnnotations.active_skeleton_color;
+          } else {
+            return SkeletonAnnotations.active_skeleton_color_virtual;
+          }
+        } else if (SkeletonAnnotations.isRealNode(this.id)) {
+          return baseColor.getStyle();
         } else {
           return SkeletonAnnotations.inactive_skeleton_color_virtual;
         }
@@ -532,6 +573,7 @@
       /** Prepare node for removal from cache. */
       this.obliterate = function() {
         this.paper = null;
+        this.skeletonDisplayModels = null;
         this.id = null;
         this.parent = null;
         this.parent_id = null;
@@ -765,6 +807,7 @@
 
     ptype.Node = function(
       paper,
+      skeletonDisplayModels,
       id,         // unique id for the node from the database
       parent,     // the parent node (may be null if the node is not loaded)
       parent_id,  // is null only for the root node
@@ -779,6 +822,7 @@
       hrefSuffix) // a suffix that is appended to the ID of the referenced geometry
     {
       this.paper = paper;
+      this.skeletonDisplayModels = skeletonDisplayModels;
       this.id = id;
       this.type = SkeletonAnnotations.TYPE_NODE;
       this.parent = parent;
@@ -957,6 +1001,7 @@
 
     ptype.ConnectorNode = function(
       paper,
+      skeletonDisplayModels,
       id,         // unique id for the node from the database
       x,          // the x coordinate in oriented project coordinates
       y,          // the y coordinate in oriented project coordinates
@@ -968,6 +1013,7 @@
       hrefSuffix) // a suffix that is appended to the ID of the referenced geometry
     {
       this.paper = paper;
+      this.skeletonDisplayModels = skeletonDisplayModels;
       this.id = id;
       this.type = SkeletonAnnotations.TYPE_CONNECTORNODE;
       this.subtype = subtype;
