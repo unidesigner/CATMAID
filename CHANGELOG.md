@@ -5,20 +5,21 @@
 Starting with this release CATMAID uses a new database migration system. To
 update an existing CATMAID instance safely, please follow these steps:
 
-1. Make sure you have CATMAID updated to the last release (2015.12.21),
+1. Make sure your PostgreSQL version is 9.4.
+2. Make sure you have CATMAID updated to the last release (2015.12.21),
    including all database migrations and up-to-date Python packages.
-2. Upgrade to this version (or a newer one) and update pip and all Python
+3. Upgrade to this version (or a newer one) and update pip and all Python
    packages (in within your virtualenv), South can be removed afterwards:
 
    pip install -U pip
    pip install -r requirements.txt
    pip uninstall south
 
-3. Fake the new initial migration by running:
+4. Fake the new initial migration by running:
 
    python manage.py migrate catmaid 0001_initial --fake
 
-4. In the future no syncdb step is required anymore. Continue with the rest of
+5. In the future no syncdb step is required anymore. Continue with the rest of
    the regular update procedure:
 
    python manage.py migrate

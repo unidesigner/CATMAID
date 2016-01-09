@@ -7,7 +7,7 @@ from django.db.models import signals
 from django.contrib import auth
 from django.contrib.auth.management.commands import createsuperuser
 
-#from catmaid.control import project
+import custom_rest_swagger_apis
 
 
 def get_system_user():
@@ -102,6 +102,9 @@ class CATMAIDConfig(AppConfig):
 
         # Validate CATMAID environment after all migrations have been run
         signals.post_migrate.connect(validate_environment)
+
+        # Monkey patch django-rest-swagger so that it can handle our URLs
+        custom_rest_swagger_apis.patch()
 
     # A list of settings that are expected to be available.
     required_setting_fields = {

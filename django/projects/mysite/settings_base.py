@@ -4,6 +4,7 @@ import os
 import sys
 import django.conf.global_settings as DEFAULT_SETTINGS
 import utils
+import logging
 import pipelinefiles
 
 # Make Django root folder available
@@ -59,7 +60,7 @@ INSTALLED_APPS = (
     'djcelery',
     'taggit',
     'adminplus',
-    'catmaid',
+    'catmaid.apps.CATMAIDConfig',
     'performancetests',
     'guardian',
     'pipeline',
@@ -83,7 +84,7 @@ LOGGING = {
     'handlers': {
         'null': {
             'level': 'DEBUG',
-            'class': 'django.utils.log.NullHandler',
+            'class': 'logging.NullHandler',
         },
         'console': {
             'level': 'DEBUG',

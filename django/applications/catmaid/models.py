@@ -141,8 +141,8 @@ class Stack(models.Model):
 
 
 class ProjectStack(models.Model):
-    project = models.ForeignKey(Project)
-    stack = models.ForeignKey(Stack)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    stack = models.ForeignKey(Stack, on_delete=models.CASCADE)
     translation = Double3DField(default=(0, 0, 0))
     orientation = models.IntegerField(choices=((0, 'xy'), (1, 'xz'), (2, 'zy')), default=0)
 
@@ -155,7 +155,7 @@ class ProjectStack(models.Model):
 
 class Overlay(models.Model):
     title = models.TextField()
-    stack = models.ForeignKey(Stack)
+    stack = models.ForeignKey(Stack, on_delete=models.CASCADE)
     image_base = models.TextField()
     default_opacity = models.IntegerField(default=0)
     file_extension = models.TextField()
@@ -171,10 +171,10 @@ class Overlay(models.Model):
 
 
 class Concept(models.Model):
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "concept"
@@ -199,10 +199,10 @@ def create_concept_sub_table(table_name):
 
 class Class(models.Model):
     # Repeat the columns inherited from 'concept'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     # Now new columns:
     class_name = models.CharField(max_length=255)
     description = models.TextField()
@@ -221,12 +221,13 @@ class ConnectivityDirection(object):
 
 class ClassInstance(models.Model):
     # Repeat the columns inherited from 'concept'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     # Now new columns:
-    class_column = models.ForeignKey(Class, db_column="class_id") # underscore since class is a keyword
+    class_column = models.ForeignKey(Class, on_delete=models.CASCADE,
+                                     db_column="class_id") # underscore since class is a keyword
     name = models.CharField(max_length=255)
 
     class Meta:
@@ -363,10 +364,10 @@ class ClassInstance(models.Model):
 
 class Relation(models.Model):
     # Repeat the columns inherited from 'concept'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     # Now new columns:
     relation_name = models.CharField(max_length=255)
     uri = models.TextField()
@@ -379,12 +380,12 @@ class Relation(models.Model):
 
 class RelationInstance(models.Model):
     # Repeat the columns inherited from 'concept'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     # Now new columns:
-    relation = models.ForeignKey(Relation)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "relation_instance"
@@ -392,25 +393,27 @@ class RelationInstance(models.Model):
 
 class ClassInstanceClassInstance(models.Model):
     # Repeat the columns inherited from 'relation_instance'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
-    relation = models.ForeignKey(Relation)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
     # Now new columns:
     class_instance_a = models.ForeignKey(ClassInstance,
                                          related_name='cici_via_a',
-                                         db_column='class_instance_a')
+                                         db_column='class_instance_a',
+                                         on_delete=models.CASCADE)
     class_instance_b = models.ForeignKey(ClassInstance,
                                          related_name='cici_via_b',
-                                         db_column='class_instance_b')
+                                         db_column='class_instance_b',
+                                         on_delete=models.CASCADE)
 
     class Meta:
         db_table = "class_instance_class_instance"
 
 
 class BrokenSlice(models.Model):
-    stack = models.ForeignKey(Stack)
+    stack = models.ForeignKey(Stack, on_delete=models.CASCADE)
     index = models.IntegerField()
 
     class Meta:
@@ -419,23 +422,23 @@ class BrokenSlice(models.Model):
 
 class ClassClass(models.Model):
     # Repeat the columns inherited from 'relation_instance'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
-    relation = models.ForeignKey(Relation)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
     # Now new columns:
     class_a = models.ForeignKey(Class, related_name='classes_a',
-                                db_column='class_a')
+                                on_delete=models.CASCADE, db_column='class_a')
     class_b = models.ForeignKey(Class, related_name='classes_b',
-                                db_column='class_b')
+                                on_delete=models.CASCADE, db_column='class_b')
 
     class Meta:
         db_table = "class_class"
 
 
 class Message(models.Model):
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     time = models.DateTimeField(default=timezone.now)
     read = models.BooleanField(default=False)
     title = models.TextField()
@@ -456,9 +459,9 @@ class ClientDatastore(models.Model):
 
 
 class ClientData(models.Model):
-    datastore = models.ForeignKey(ClientDatastore)
-    project = models.ForeignKey(Project, blank=True, null=True)
-    user = models.ForeignKey(User, blank=True, null=True)
+    datastore = models.ForeignKey(ClientDatastore, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
     key = models.CharField(max_length=255)
     # TODO: JSONField does not use Postgres JSON type, does not validate that
     # text content is valid JSON. Replace with Django's JSONField when we reach
@@ -493,8 +496,8 @@ class UserFocusedManager(models.Manager):
 
 class UserFocusedModel(models.Model):
     objects = UserFocusedManager()
-    user = models.ForeignKey(User)
-    project = models.ForeignKey(Project)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
 
@@ -509,7 +512,7 @@ class Textlabel(models.Model):
     font_name = models.TextField(null=True)
     font_style = models.TextField(null=True)
     font_size = models.FloatField(default=32)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     scaling = models.BooleanField(default=True)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
@@ -520,7 +523,7 @@ class Textlabel(models.Model):
 
 
 class TextlabelLocation(models.Model):
-    textlabel = models.ForeignKey(Textlabel)
+    textlabel = models.ForeignKey(Textlabel, on_delete=models.CASCADE)
     location = Double3DField()
     deleted = models.BooleanField(default=False)
 
@@ -529,7 +532,8 @@ class TextlabelLocation(models.Model):
 
 
 class Location(UserFocusedModel):
-    editor = models.ForeignKey(User, related_name='location_editor', db_column='editor_id')
+    editor = models.ForeignKey(User, on_delete=models.CASCADE,
+                               related_name='location_editor', db_column='editor_id')
     location_x = models.FloatField()
     location_y = models.FloatField()
     location_z = models.FloatField()
@@ -539,21 +543,23 @@ class Location(UserFocusedModel):
 
 
 class Treenode(UserFocusedModel):
-    editor = models.ForeignKey(User, related_name='treenode_editor', db_column='editor_id')
+    editor = models.ForeignKey(User, on_delete=models.CASCADE,
+                               related_name='treenode_editor', db_column='editor_id')
     location_x = models.FloatField()
     location_y = models.FloatField()
     location_z = models.FloatField()
-    parent = models.ForeignKey('self', null=True, related_name='children')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE,
+                               null=True, related_name='children')
     radius = models.FloatField()
     confidence = models.IntegerField(default=5)
-    skeleton = models.ForeignKey(ClassInstance)
+    skeleton = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "treenode"
 
 
 class SuppressedVirtualTreenode(UserFocusedModel):
-    child = models.ForeignKey(Treenode)
+    child = models.ForeignKey(Treenode, on_delete=models.CASCADE)
     location_coordinate = models.FloatField()
     orientation = models.SmallIntegerField(choices=((0, 'z'), (1, 'y'), (2, 'x')))
 
@@ -562,7 +568,8 @@ class SuppressedVirtualTreenode(UserFocusedModel):
 
 
 class Connector(UserFocusedModel):
-    editor = models.ForeignKey(User, related_name='connector_editor', db_column='editor_id')
+    editor = models.ForeignKey(User, on_delete=models.CASCADE,
+                               related_name='connector_editor', db_column='editor_id')
     location_x = models.FloatField()
     location_y = models.FloatField()
     location_z = models.FloatField()
@@ -574,10 +581,10 @@ class Connector(UserFocusedModel):
 
 class TreenodeClassInstance(UserFocusedModel):
     # Repeat the columns inherited from 'relation_instance'
-    relation = models.ForeignKey(Relation)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
     # Now new columns:
-    treenode = models.ForeignKey(Treenode)
-    class_instance = models.ForeignKey(ClassInstance)
+    treenode = models.ForeignKey(Treenode, on_delete=models.CASCADE)
+    class_instance = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "treenode_class_instance"
@@ -585,10 +592,10 @@ class TreenodeClassInstance(UserFocusedModel):
 
 class ConnectorClassInstance(UserFocusedModel):
     # Repeat the columns inherited from 'relation_instance'
-    relation = models.ForeignKey(Relation)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
     # Now new columns:
-    connector = models.ForeignKey(Connector)
-    class_instance = models.ForeignKey(ClassInstance)
+    connector = models.ForeignKey(Connector, on_delete=models.CASCADE)
+    class_instance = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "connector_class_instance"
@@ -596,11 +603,11 @@ class ConnectorClassInstance(UserFocusedModel):
 
 class TreenodeConnector(UserFocusedModel):
     # Repeat the columns inherited from 'relation_instance'
-    relation = models.ForeignKey(Relation)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
     # Now new columns:
-    treenode = models.ForeignKey(Treenode)
-    connector = models.ForeignKey(Connector)
-    skeleton = models.ForeignKey(ClassInstance)
+    treenode = models.ForeignKey(Treenode, on_delete=models.CASCADE)
+    connector = models.ForeignKey(Connector, on_delete=models.CASCADE)
+    skeleton = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
     confidence = models.IntegerField(default=5)
 
     class Meta:
@@ -614,11 +621,11 @@ class Review(models.Model):
     skeleton and the project. However, both of them are included for
     performance reasons (to avoid a join in the database for retrieval).
     """
-    project = models.ForeignKey(Project)
-    reviewer = models.ForeignKey(User)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE)
     review_time = models.DateTimeField(default=timezone.now)
-    skeleton = models.ForeignKey(ClassInstance)
-    treenode = models.ForeignKey(Treenode)
+    skeleton = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
+    treenode = models.ForeignKey(Treenode, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "review"
@@ -628,9 +635,9 @@ class ReviewerWhitelist(models.Model):
     """ This model represents that a user trusts the reviews of a partciular
     reviewer for a specific project created after a specified time.
     """
-    project = models.ForeignKey(Project)
-    user = models.ForeignKey(User)
-    reviewer = models.ForeignKey(User, related_name='+')
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
     accept_after = models.DateTimeField(default=datetime.utcfromtimestamp(0))
 
     class Meta:
@@ -642,23 +649,23 @@ class Volume(UserFocusedModel):
     """A three-dimensional volume in project space. Implemented as PostGIS
     Geometry type.
     """
-    editor = models.ForeignKey(User, related_name='editor', db_column='editor_id')
+    editor = models.ForeignKey(User, on_delete=models.CASCADE,
+                               related_name='editor', db_column='editor_id')
     name = models.CharField(max_length=255)
     comment = models.TextField(blank=True, null=True)
     # GeoDjango-specific: a geometry field with PostGIS-specific 3 dimensions.
     geometry = spatial_models.GeometryField(dim=3, srid=0)
-    # Override default manager with a GeoManager instance
-    objects = spatial_models.GeoManager()
 
 
 class RegionOfInterest(UserFocusedModel):
     # Repeat the columns inherited from 'location'
-    editor = models.ForeignKey(User, related_name='roi_editor', db_column='editor_id')
+    editor = models.ForeignKey(User, on_delete=models.CASCADE,
+                               related_name='roi_editor', db_column='editor_id')
     location_x = models.FloatField()
     location_y = models.FloatField()
     location_z = models.FloatField()
     # Now new columns:
-    stack = models.ForeignKey(Stack)
+    stack = models.ForeignKey(Stack, on_delete=models.CASCADE)
     zoom_level = models.IntegerField()
     width = models.FloatField()
     height = models.FloatField()
@@ -670,10 +677,10 @@ class RegionOfInterest(UserFocusedModel):
 
 class RegionOfInterestClassInstance(UserFocusedModel):
     # Repeat the columns inherited from 'relation_instance'
-    relation = models.ForeignKey(Relation)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
     # Now new columns:
-    region_of_interest = models.ForeignKey(RegionOfInterest)
-    class_instance = models.ForeignKey(ClassInstance)
+    region_of_interest = models.ForeignKey(RegionOfInterest, on_delete=models.CASCADE)
+    class_instance = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "region_of_interest_class_instance"
@@ -681,13 +688,13 @@ class RegionOfInterestClassInstance(UserFocusedModel):
 
 class Restriction(models.Model):
     # Repeat the columns inherited from 'concept'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     # Now new columns:
     enabled = models.BooleanField(default=True)
-    restricted_link = models.ForeignKey(ClassClass)
+    restricted_link = models.ForeignKey(ClassClass, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "restriction"
@@ -706,12 +713,12 @@ class CardinalityRestriction(models.Model):
     5: The minimum number of class instances for each sub-type is defined
     """
     # Repeat the columns inherited from 'restriction'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     enabled = models.BooleanField(default=True)
-    restricted_link = models.ForeignKey(ClassClass)
+    restricted_link = models.ForeignKey(ClassClass, on_delete=models.CASCADE)
     # Now new columns:
     cardinality_type = models.IntegerField()
     value = models.IntegerField()
@@ -820,14 +827,14 @@ class CardinalityRestriction(models.Model):
 
 class StackClassInstance(models.Model):
     # Repeat the columns inherited from 'relation_instance'
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     creation_time = models.DateTimeField(default=timezone.now)
     edition_time = models.DateTimeField(default=timezone.now)
-    project = models.ForeignKey(Project)
-    relation = models.ForeignKey(Relation)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    relation = models.ForeignKey(Relation, on_delete=models.CASCADE)
     # Now new columns:
-    stack = models.ForeignKey(Stack)
-    class_instance = models.ForeignKey(ClassInstance)
+    stack = models.ForeignKey(Stack, on_delete=models.CASCADE)
+    class_instance = models.ForeignKey(ClassInstance, on_delete=models.CASCADE)
 
     class Meta:
         db_table = "stack_class_instance"
@@ -920,7 +927,7 @@ class DataViewType(models.Model):
 
 class DataView(models.Model):
     title = models.TextField()
-    data_view_type = models.ForeignKey(DataViewType)
+    data_view_type = models.ForeignKey(DataViewType, on_delete=models.CASCADE)
     config = models.TextField(default="{}")
     is_default = models.BooleanField(default=False)
     position = models.IntegerField(default=0)
@@ -969,7 +976,7 @@ class UserProfile(models.Model):
     """ A class that stores a set of custom user preferences.
     See: http://digitaldreamer.net/blog/2010/12/8/custom-user-profile-and-extend-user-admin-django/
     """
-    user = models.OneToOneField(User)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     independent_ontology_workspace_is_default = models.BooleanField(
         default=settings.PROFILE_INDEPENDENT_ONTOLOGY_WORKSPACE_IS_DEFAULT)
     show_text_label_tool = models.BooleanField(
@@ -1051,10 +1058,11 @@ class ChangeRequest(UserFocusedModel):
     type = models.CharField(max_length=32)
     description = models.TextField()
     status = models.IntegerField(default=OPEN)
-    recipient = models.ForeignKey(User, related_name='change_recipient', db_column='recipient_id')
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE,
+                                  related_name='change_recipient', db_column='recipient_id')
     location = Double3DField()
-    treenode = models.ForeignKey(Treenode)
-    connector = models.ForeignKey(Connector)
+    treenode = models.ForeignKey(Treenode, on_delete=models.CASCADE)
+    connector = models.ForeignKey(Connector, on_delete=models.CASCADE)
     validate_action = models.TextField()
     approve_action = models.TextField()
     reject_action = models.TextField()
