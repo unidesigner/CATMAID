@@ -125,7 +125,7 @@
      *
      * @returns a promise that is resolved once the treenode is created
      */
-    create: function(projectId, x, y, z, parentId, radius, confidence, useNeuron, neuronName) {
+    create: function(state, projectId, x, y, z, parentId, radius, confidence, useNeuron, neuronName) {
       CATMAID.requirePermission(projectId, 'can_annotate',
           'You don\'t have have permission to create a new node');
 
@@ -138,7 +138,8 @@
         radius: radius,
         confidence: confidence,
         useneuron: useNeuron,
-        neuron_name: neuronName
+        neuron_name: neuronName,
+        state: JSON.stringify(state)
       };
 
       return CATMAID.fetch(url, 'POST', params)
@@ -201,7 +202,7 @@
      *
      * @returns promise deleting the treenode
      */
-    remove: function(projectId, nodeId, state) {
+    remove: function(state, projectId, nodeId) {
       CATMAID.requirePermission(projectId, 'can_annotate',
           'You don\'t have have permission to remove a new node');
 
@@ -389,10 +390,10 @@
    * @param {integer} nodeId    The node to remove
    */
   CATMAID.RemoveNodeCommand = CATMAID.makeCommand(function(
-        projectId, nodeId, state) {
+        state, projectId, nodeId) {
 
     var exec = function(done, command, map) {
-      var removeNode = CATMAID.Nodes.remove(projectId, nodeId, state);
+      var removeNode = CATMAID.Nodes.remove(state, projectId, nodeId);
 
       return removeNode.then(function(result) {
         // Map ID of removed node to null to able to map the node created during
@@ -427,10 +428,10 @@
       // If there were child nodes before the removal, link to them again.
       var create;
       if (0 === mChildIds.length) {
-        create = CATMAID.Nodes.create(projectId, x, y, z, mParentId, radius, confidence);
+        create = CATMAID.Nodes.create(state, projectId, x, y, z, mParentId, radius, confidence);
       } else {
         // Insert the node between parent and (first) child
-        create = CATMAID.Nodes.insert(projectId, x, y, z, mParentId, mChildIds.shift(), radius, confidence);
+        create = CATMAID.Nodes.insert(state, projectId, x, y, z, mParentId, mChildIds.shift(), radius, confidence);
       }
       return create.then(function(result) {
         // Store ID of new node created by this command
@@ -472,13 +473,13 @@
    * @returns a promise that is resolved once the treenode is created
    */
   CATMAID.CreateNodeCommand = CATMAID.makeCommand(function(
-        projectId, x, y, z, parentId, radius, confidence, useNeuron, neuronName) {
+        state, projectId, x, y, z, parentId, radius, confidence, useNeuron, neuronName) {
 
     var exec = function(done, command, map) {
       // Get current, mapped version of parent ID
       var mParentId = map.get(map.NODE, parentId);
-      var create = CATMAID.Nodes.create(projectId, x, y, z, mParentId, radius,
-          confidence, useNeuron, neuronName);
+      var create = CATMAID.Nodes.create(state, projectId, x, y, z,
+          mParentId, radius, confidence, useNeuron, neuronName);
       return create.then(function(result) {
         // Store ID of new node created by this command
         map.add(map.NODE, result.treenode_id, command);
@@ -518,14 +519,14 @@
    * @returns a promise that is resolved once the treenode is created
    */
   CATMAID.InsertNodeCommand = CATMAID.makeCommand(function(
-      projectId, x, y, z, parentId, childId, radius, confidence, useNeuron) {
+      state, projectId, x, y, z, parentId, childId, radius, confidence, useNeuron) {
 
     var exec = function(done, command, map) {
       // Get current, mapped version of parent and child ID
       var mParentId = map.get(map.NODE, parentId);
       var mChildId = map.get(map.NODE, childId);
-      var insert = CATMAID.Nodes.insert(projectId, x, y, z, mParentId, mChildId,
-          radius, confidence, useNeuron);
+      var insert = CATMAID.Nodes.insert(state, projectId, x, y, z,
+          mParentId, mChildId, radius, confidence, useNeuron);
       return insert.then(function(result) {
         // Store ID of new node created by this command
         map.add(map.NODE, result.treenode_id, command);

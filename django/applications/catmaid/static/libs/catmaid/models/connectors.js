@@ -110,7 +110,7 @@
      * @param {integer} nodeId      The node linked to
      * @param {string}  linkType    Relation to create
      */
-    createLink: function(projectId, connectorId, nodeId, linkType) {
+    createLink: function(state, projectId, connectorId, nodeId, linkType) {
       CATMAID.requirePermission(projectId, 'can_annotate',
           'You don\'t have have permission to create links');
       var url = projectId + '/link/create';
@@ -138,7 +138,7 @@
      * @param {integer} connectorId The linked connector
      * @param {integer} nodeId      The linked node
      */
-    removeLink: function(projectId, connectorId, nodeId) {
+    removeLink: function(state, projectId, connectorId, nodeId) {
       CATMAID.requirePermission(projectId, 'can_annotate',
           'You don\'t have have permission to remove links');
       var url = projectId + '/link/delete';
@@ -238,7 +238,7 @@
       var linkPartners = create.then(function(result) {
         var connectorId = result.newConnectorId;
         return Promise.all(partners.map(function(p) {
-          return CATMAID.Connectors.createLink(projectId,
+          return CATMAID.Connectors.createLink(state, projectId,
               connectorId, p.id, p.rel);
         }));
       });
@@ -251,10 +251,10 @@
   });
 
   CATMAID.LinkConnectorCommand = CATMAID.makeCommand(
-      function(projectId, connectorId, nodeId, linkType) {
+      function(state, projectId, connectorId, nodeId, linkType) {
 
     var exec = function(done, command, map) {
-      var link = CATMAID.Connectors.createLink(projectId,
+      var link = CATMAID.Connectors.createLink(state, projectId,
           map.get(map.CONNECTOR, connectorId),
           map.get(map.NODE, nodeId), linkType);
       return link.then(function(result) {
@@ -269,7 +269,8 @@
       var mNodeId = map.get(map.NODE, nodeId);
       command.validateForUndo(mConnectorId, mNodeId);
 
-      var unlink = CATMAID.Connectors.removeLink(projectId, mConnectorId, mNodeId);
+      var unlink = CATMAID.Connectors.removeLink(state,
+          projectId, mConnectorId, mNodeId);
       return unlink.then(done);
     };
 
@@ -279,10 +280,10 @@
   });
 
   CATMAID.UnlinkConnectorCommand = CATMAID.makeCommand(
-      function(projectId, connectorId, nodeId) {
+      function(state, projectId, connectorId, nodeId) {
 
     var exec = function(done, command, map) {
-      var link = CATMAID.Connectors.removeLink(projectId,
+      var link = CATMAID.Connectors.removeLink(state, projectId,
           map.get(map.CONNECTOR, connectorId),
           map.get(map.NODE, nodeId));
       return link.then(function(result) {
@@ -300,7 +301,7 @@
       var linkType = command.get('linkType');
       command.validateForUndo(mConnectorId, mNodeId, linkType);
 
-      var link = CATMAID.Connectors.createLink(
+      var link = CATMAID.Connectors.createLink(state,
           projectId, mConnectorId, mNodeId, linkType);
       return link.then(done);
     };

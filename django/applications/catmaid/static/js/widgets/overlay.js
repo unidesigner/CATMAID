@@ -1583,17 +1583,18 @@ SkeletonAnnotations.TracingOverlay.prototype.createTreenodeLink = function (from
 };
 
 /**
- * Asynchronuously, create a link between the nodes @fromid and @toid of type
- * @link_type. It is expected, that both nodes are existant. All nodes are
+ * Asynchronously, create a link between the nodes @fromid and @toid of type
+ * @link_type. It is expected, that both nodes are existent. All nodes are
  * updated after this. If the from-node is virtual, it will be created.
  */
-SkeletonAnnotations.TracingOverlay.prototype.createLink = function (fromid, toid,
-    link_type, afterCreate)
-{
+SkeletonAnnotations.TracingOverlay.prototype.createLink = function (
+    fromid, toid, link_type, afterCreate) {
   var self = this;
   return this.promiseNode(fromid).then(function(nodeId) {
     return self.submit.then(function() {
-      var command = new CATMAID.LinkConnectorCommand(project.id, toid, nodeId, link_type);
+      var state = self.getState(nodeId);
+      var command = new CATMAID.LinkConnectorCommand(state,
+          project.id, toid, nodeId, link_type);
       return CATMAID.commands.execute(command).then(function(result) {
         if (result.warning) CATMAID.warn(result.warning);
         self.updateNodes(afterCreate);
@@ -1719,7 +1720,7 @@ SkeletonAnnotations.TracingOverlay.prototype.createTreenodeWithLink = function (
     pos_z, link_type, afterCreate)
 {
   var self = this;
-  var command = new CATMAID.CreateNodeCommand(project.id, phys_x, phys_y, phys_z,
+  var command = new CATMAID.CreateNodeCommand(null, project.id, phys_x, phys_y, phys_z,
       -1, radius, confidence, undefined, SkeletonAnnotations.defaultNewNeuronName);
   CATMAID.commands.execute(command)
     .then(function(jso) {
@@ -1733,7 +1734,8 @@ SkeletonAnnotations.TracingOverlay.prototype.createTreenodeWithLink = function (
       nn.createGraphics();
       // create link : new treenode postsynaptic_to or presynaptic_to
       // deactivated connectorID
-      self.createLink(nid, connectorID, link_type, function() {
+      var state = self.getState();
+      self.createLink(state, nid, connectorID, link_type, function() {
         if (afterCreate) {
           // Use a new node reference, because createLink() triggers an update,
           // which potentially re-initializes node objects.
@@ -1745,9 +1747,9 @@ SkeletonAnnotations.TracingOverlay.prototype.createTreenodeWithLink = function (
 };
 
 /**
- * Create a node and activate it. Expectes the parent node to be real or falsy,
+ * Create a node and activate it. Expects the parent node to be real or falsy,
  * i.e. not virtual. If a child ID is passed in, a new node is created between
- * this child and the parend node.
+ * this child and the parent node.
  */
 SkeletonAnnotations.TracingOverlay.prototype.createNode = function (parentID, childId,
    phys_x, phys_y, phys_z, radius, confidence, pos_x, pos_y, pos_z, afterCreate)
@@ -1761,17 +1763,20 @@ SkeletonAnnotations.TracingOverlay.prototype.createNode = function (parentID, ch
 
   var self = this;
 
-  // Suspend layer to avoid potentially expecnsive updateNodes() call. An event
+  // Suspend layer to avoid potentially expensive updateNodes() call. An event
   // is triggered manually after the nodes array was updated by hand. Right
   // before this, the tracing layer is activated again. In case of error, the
   // layer is also activated again.
   var originalSuspended = this.suspended;
   this.suspended = true;
 
+  // Use non-type checking inequality, in case a string is provided
+  var state  = (parentID && -1 != parentID) ? this.getState(parentID, true, false, true) : null;
+
   var command = childId ?
-    new CATMAID.InsertNodeCommand(project.id, phys_x, phys_y,
+    new CATMAID.InsertNodeCommand(state, project.id, phys_x, phys_y,
       phys_z, parentID, childId, radius, confidence, useneuron) :
-    new CATMAID.CreateNodeCommand(project.id, phys_x, phys_y,
+    new CATMAID.CreateNodeCommand(state, project.id, phys_x, phys_y,
       phys_z, parentID, radius, confidence, useneuron, neuronname);
   return CATMAID.commands.execute(command)
     .then(function(result) {
@@ -3809,7 +3814,7 @@ SkeletonAnnotations.TracingOverlay.prototype.deleteNode = function(nodeId) {
    */
   function deleteTreenode(node, wasActiveNode) {
     // Make sure all other pending tasks are done before the node is deleted.
-    var command = new CATMAID.RemoveNodeCommand(project.id, node.id, self.getState(node.id));
+    var command = new CATMAID.RemoveNodeCommand(self.getState(node.id), project.id, node.id);
     var delFn = CATMAID.commands.execute.bind(CATMAID.commands, command);
 
     self.submit.then(delFn).then(function(json) {
@@ -3918,37 +3923,47 @@ SkeletonAnnotations.TracingOverlay.prototype.toggleVirtualNodeSuppression = func
  *     links: ((<connector_id>, <connector_edition_time>, <relation_id>), ...)
  *   }
  */
-SkeletonAnnotations.TracingOverlay.prototype.getState = function(nodeId) {
+SkeletonAnnotations.TracingOverlay.prototype.getState = function(nodeId, noparent, nochildren, nolinks) {
   var node = this.nodes[nodeId];
   if (!node) {
     throw new CATMAID.ValueError("Can't create state: node not found");
   }
+
+  var state = {
+    'edition_time': node.edition_time
+  };
+
   var parent;
-  if (node.parent_id) {
+  if (node.parent_id && !noparent) {
     parent = this.nodes[node.parent_id];
     if (!parent) {
       throw new CATMAID.ValueError("Can't create state: parent node not found");
     }
-  }
-  var children = [];
-  for (var cid in node.children) {
-    cid = SkeletonAnnotations.isRealNode(cid) ? cid :
-        SkeletonAnnotations.getChildOfVirtualNode(cid);
-    children.push([cid, node.children[cid].edition_time]);
-  }
-  var links = [];
-  for (var cid in node.connectors) {
-    var connector = this.nodes[cid];
-    var link = node.connectors[cid];
-      links.push([cid, connector.edition_time, link.relation_id]);
+
+    state['parent'] = [node.parent_id, parent ? parent.edition_time : null];
   }
 
-  return {
-    'edition_time': node.edition_time,
-    'parent': [node.parent_id, parent ? parent.edition_time : null],
-    'children': children,
-    'links': links
-  };
+  if (!nochildren) {
+    var children = [];
+    for (var cid in node.children) {
+      cid = SkeletonAnnotations.isRealNode(cid) ? cid :
+          SkeletonAnnotations.getChildOfVirtualNode(cid);
+      children.push([cid, node.children[cid].edition_time]);
+    }
+    state['children'] = children;
+  }
+
+  if (!nolinks) {
+    var links = [];
+    for (var cid in node.connectors) {
+      var connector = this.nodes[cid];
+      var link = node.connectors[cid];
+        links.push([cid, connector.edition_time, link.relation_id]);
+    }
+    state['links'] = links;
+  }
+
+  return state;
 };
 
 /**
